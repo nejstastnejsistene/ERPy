@@ -2,7 +2,9 @@ import struct
 
 import numpy as np
 
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('module://backend_wxagg_erpy')
+from matplotlib import pyplot
 
 filename = '5001.000.b.dat'
 
@@ -30,8 +32,8 @@ def draw(data, t0, t1, ch0, ch1, scale=5000, pixel_density=1000):
     step = ds / pixel_density
 
     # Create the figure and axes.
-    fig = plt.figure()
-    axes = plt.subplot(111)
+    fig = pyplot.figure()
+    axes = pyplot.subplot(111)
 
     # Plot the data.
     t = (np.arange(s0, s1, dtype=float) / sample_rate)[::step]
@@ -53,6 +55,6 @@ def draw(data, t0, t1, ch0, ch1, scale=5000, pixel_density=1000):
         axes.get_xaxis().set_visible(False)
         axes.get_yaxis().set_visible(False)
 
-    plt.show()
+    pyplot.show()
 
 draw(data, 5, 8, 5, 8)
