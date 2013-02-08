@@ -2,57 +2,90 @@ import struct
 
 import numpy as np
 
+from matplotlib.figure import Figure
 
 filename = '5001.000.b.dat'
 
-def draw(fig, axes, data, t0, t1, ch0, ch1, scale=5000, pixel_density=1000):
-    dt = t1 - t0
-    dch = int(ch1 - ch0)
 
-    # Horizontal limits in terms of samples.
-    s0 = max(int((t0 - dt) * fig.sample_rate), 0)
-    s1 = min(int((t1 + dt) * fig.sample_rate), fig.num_samples)
-    ds = s1 - s0
-    step = ds / pixel_density
+class ErpyFigure(Figure):
 
-    # Create the figure and axes.
-    #fig = pyplot.figure()
-    #axes = pyplot.subplot(111)
-    fig.data = data
-    fig.xlim = t0 - dt, t1 + dt
-    fig.ylim = ch0 - dch, ch1 + dch
-    fig.scale = scale
-    fig.pixel_density = pixel_density
+    default_scale = 5000
+    default_pixel_density = 1000
 
-    axes.cla()
+    def __init__(self, *args, **kwargs):
+        Figure.__init__(self, *args)
+        self._memmap = kwargs.get('memmap')
+        self._sample_rate = kwargs.get('sample_rate')
+        self._num_samples = kwargs.get('num_samples')
+        limits = kwargs.get('limits')
+        self._limits = self._get_buffer_bounds(*limits)
+        self._scale = kwargs.get('scale', self.default_scale)
+        self._pixel_density = kwargs.get('pixel_density',
+                                         self.default_pixel_density)
 
-    # Plot the data.
-    t = (np.arange(s0, s1, dtype=float) / fig.sample_rate)[::step]
-    off = ch0 % 1
-    for i in range(int(ch0) - dch, int(ch1) + dch):
-        offset = i + 0.5 + off
-        #print offset, i, s0, s1, step
-        #print 'dt', dt, ds/fig.sample_rate
-        axes.plot(t, scale*data[i][s0:s1:step]+offset)
-        
-    # Set our window limits.
-    axes.set_xlim(t0, t1)
-    axes.set_ylim(ch0, ch1)
-    axes.set_xlabel('time (seconds)')
+    @staticmethod
+    def _get_buffer_bounds(x0, x1, y0, y1):
+        '''
+        Calculates the bounds of the buffer given the
+        viewing window.
+        '''
+        dx, dy = x1 - x0, y1 - y0
+        return x0 - dx, x1 + dx, y0 - dy, y1 + dy
 
-    #if False:
-        # Remove margins and axes.
-        #fig.subplots_adjust(left=0)
-        #fig.subplots_adjust(right=1)
-        #fig.subplots_adjust(bottom=0)
-        #fig.subplots_adjust(top=1)
-        #axes.get_xaxis().set_visible(False)
-        #axes.get_yaxis().set_visible(False)
+    def _check_buffer(self):
+        '''
+        Reloads the buffer if the viewing window has left
+        the buffered region.
+        '''
+        outer_x0, outer_x1, outer_y0, outer_y1 = self._limits
+        axis, = self.get_axes()
+        inner_x0, inner_x1 = axis.get_xlim()
+        inner_y0, inner_y1 = axis.get_ylim()
+        if inner_x0 < outer_x0 or inner_y0 < outer_y0 or \
+                inner_x1 > outer_x1 or inner_y1 > outer_y1:
+            self._limits = self._get_buffer_bounds(inner_x0, inner_x1, \
+                                                   inner_y0, inner_y1)
+            self._reload_buffer()
+
+    def _reload_buffer(self):
+        '''
+        Reloads the buffer to the region indicated by self._limits.
+        It does not modify the current view window, so it assumes
+        that the window is within the given bounds.
+        '''
+        x0, x1, y0, y1 = self._limits
+
+        # Horizontal limits in terms of samples.
+        s0 = max(int(x0 * self._sample_rate), 0)
+        s1 = min(int(x1 * self._sample_rate), self._num_samples)
+        ds = s1 - s0
+        step = ds / self._pixel_density
+
+        # Currently only does a single axis, will need to consider
+        # support for subplots later.
+        axis = self.get_axes()[0]
+        # Clear axes.
+        axis.cla()
+
+        # Plot the data.
+        t = (np.arange(s0, s1, dtype=float) / fig._sample_rate)[::step]
+        off = y0 % 1 
+        for i in range(int(y0), int(y1)):
+            offset = i + 0.5 + off
+            data = self._scale * self._memmap[i][s0:s1:step] + offset
+            # I'm considering using mpl lines instead of plot()
+            axis.plot(t, data, scalex=False, scaley=False)
+
+    def draw(self, *args):
+        '''Override figure.draw() to first consider our buffer.'''
+        self._check_buffer()
+        Figure.draw(self, *args)
 
 
 if __name__ == '__main__':
     import matplotlib
-    matplotlib.use('module://backend_wxagg_erpy')
+    #matplotlib.use('module://backend_wxagg_erpy')
+    matplotlib.use('WXAgg')
     from matplotlib import pyplot
 
     # Read the header for information about data.
@@ -67,9 +100,21 @@ if __name__ == '__main__':
     shape = num_channels, num_samples
     data = np.memmap(filename, '>f', 'r', 80, shape, 'F')
 
-    fig = pyplot.figure()
-    fig.sample_rate = sample_rate
-    fig.num_samples = num_samples
-    axes = pyplot.subplot(111)
-    draw(fig, axes, data, 5, 8, 5, 8)
+    limits = 5, 8, 5, 8
+    fig = pyplot.figure(
+            FigureClass=ErpyFigure,
+            memmap=data,
+            sample_rate=sample_rate,
+            num_samples=num_samples,
+            limits=limits,
+            )
+
+    # I know, I know, I know, this is bad. I'm going to refactor
+    # ErpyFigure into ErpyAxis or something like that when I get
+    # a chance.
+    axis = pyplot.subplot(111)
+    axis.set_xlim(*limits[:2])
+    axis.set_ylim(*limits[2:])
+    axis.set_xlabel('time (seconds)')
+    fig._reload_buffer()
     pyplot.show()
