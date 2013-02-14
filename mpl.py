@@ -70,7 +70,9 @@ class ErpyFigure(Figure):
         # Plot the data.
         t = (np.arange(s0, s1, dtype=float) / fig._sample_rate)[::step]
         off = y0 % 1 
-        for i in range(int(y0), int(y1)):
+        ymin = max(int(y0), 0)
+        ymax = min(int(y1), len(self._memmap))
+        for i in range(ymin, ymax):
             offset = i + 0.5 + off
             data = self._scale * self._memmap[i][s0:s1:step] + offset
             # I'm considering using mpl lines instead of plot()
