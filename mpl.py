@@ -2,27 +2,38 @@ import struct
 
 import numpy as np
 
+from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 
 filename = '5001.000.b.dat'
 
 
-class ErpyFigure(Figure):
+class ErpyAxes(Axes):
+    '''
+    New keyword arguments:
+        memmap
+        sample_rate
+        num_samples
+        limits
+        scale
+        pixel_density
+    '''
 
     default_scale = 5000
     default_pixel_density = 1000
 
     def __init__(self, *args, **kwargs):
-        Figure.__init__(self, *args)
-        self._memmap = kwargs.get('memmap')
-        self._sample_rate = kwargs.get('sample_rate')
-        self._num_samples = kwargs.get('num_samples')
-        limits = kwargs.get('limits')
+        self._memmap = kwargs.pop('memmap')
+        self._sample_rate = kwargs.pop('sample_rate')
+        self._num_samples = kwargs.pop('num_samples')
+        limits = kwargs.pop('limits')
         self._limits = self._get_buffer_bounds(*limits)
-        self._scale = kwargs.get('scale', self.default_scale)
-        self._pixel_density = kwargs.get('pixel_density',
+        self._scale = kwargs.pop('scale', self.default_scale)
+        self._pixel_density = kwargs.pop('pixel_density',
                                          self.default_pixel_density)
+        Axes.__init__(self, *args, **kwargs)
+        self._reload_buffer()
 
     @staticmethod
     def _get_buffer_bounds(x0, x1, y0, y1):
@@ -39,9 +50,8 @@ class ErpyFigure(Figure):
         the buffered region.
         '''
         outer_x0, outer_x1, outer_y0, outer_y1 = self._limits
-        axis, = self.get_axes()
-        inner_x0, inner_x1 = axis.get_xlim()
-        inner_y0, inner_y1 = axis.get_ylim()
+        inner_x0, inner_x1 = self.get_xlim()
+        inner_y0, inner_y1 = self.get_ylim()
         if inner_x0 < outer_x0 or inner_y0 < outer_y0 or \
                 inner_x1 > outer_x1 or inner_y1 > outer_y1:
             self._limits = self._get_buffer_bounds(inner_x0, inner_x1, \
@@ -62,14 +72,11 @@ class ErpyFigure(Figure):
         ds = s1 - s0
         step = ds / self._pixel_density
 
-        # Currently only does a single axis, will need to consider
-        # support for subplots later.
-        axis = self.get_axes()[0]
         # Clear axes.
-        axis.cla()
+        self.cla()
 
         # Plot the data.
-        t = (np.arange(s0, s1, dtype=float) / fig._sample_rate)[::step]
+        t = (np.arange(s0, s1, dtype=float) / self._sample_rate)[::step]
         off = y0 % 1 
         ymin = max(int(y0), 0)
         ymax = min(int(y1), len(self._memmap))
@@ -78,12 +85,12 @@ class ErpyFigure(Figure):
             offset = i + 0.5 + off
             data = self._scale * self._memmap[i][s0:s1:step] + offset
             lines.append(zip(t, data))
-        axis.add_collection(LineCollection(lines))
+        self.add_collection(LineCollection(lines))
 
     def draw(self, *args):
-        '''Override figure.draw() to first consider our buffer.'''
+        '''Override Axes.draw() to first consider our buffer.'''
         self._check_buffer()
-        Figure.draw(self, *args)
+        Axes.draw(self, *args)
 
 
 if __name__ == '__main__':
@@ -105,20 +112,21 @@ if __name__ == '__main__':
     data = np.memmap(filename, '>f', 'r', 80, shape, 'F')
 
     limits = 5, 8, 5, 8
-    fig = pyplot.figure(
-            FigureClass=ErpyFigure,
-            memmap=data,
-            sample_rate=sample_rate,
-            num_samples=num_samples,
-            limits=limits,
-            )
+    fig = pyplot.figure()
 
-    # I know, I know, I know, this is bad. I'm going to refactor
-    # ErpyFigure into ErpyAxis or something like that when I get
-    # a chance.
-    axis = pyplot.subplot(111)
-    axis.set_xlim(*limits[:2])
-    axis.set_ylim(*limits[2:])
-    axis.set_xlabel('time (seconds)')
-    fig._reload_buffer()
+    for i in range(4):
+        x0 = (i % 2) * 0.5
+        y0 = (i / 2) * 0.5
+        axes = ErpyAxes(
+                fig, [x0, y0, 0.5, 0.5],
+                memmap=data,
+                sample_rate=sample_rate,
+                num_samples=num_samples,
+                limits=limits,
+                )
+        axes.set_xlim(*limits[:2])
+        axes.set_ylim(*limits[2:])
+        axes.set_xlabel('time (seconds)')
+        fig.add_axes(axes)
+
     pyplot.show()
