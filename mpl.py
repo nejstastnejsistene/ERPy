@@ -2,6 +2,7 @@ import struct
 
 import numpy as np
 
+from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 
 filename = '5001.000.b.dat'
@@ -72,11 +73,12 @@ class ErpyFigure(Figure):
         off = y0 % 1 
         ymin = max(int(y0), 0)
         ymax = min(int(y1), len(self._memmap))
+        lines = []
         for i in range(ymin, ymax):
             offset = i + 0.5 + off
             data = self._scale * self._memmap[i][s0:s1:step] + offset
-            # I'm considering using mpl lines instead of plot()
-            axis.plot(t, data, scalex=False, scaley=False)
+            lines.append(zip(t, data))
+        axis.add_collection(LineCollection(lines))
 
     def draw(self, *args):
         '''Override figure.draw() to first consider our buffer.'''
