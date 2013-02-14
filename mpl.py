@@ -95,8 +95,8 @@ class ErpyAxes(Axes):
 
 if __name__ == '__main__':
     import matplotlib
-    #matplotlib.use('module://backend_wxagg_erpy')
-    matplotlib.use('WXAgg')
+    matplotlib.use('module://backend_wxagg_erpy')
+    #matplotlib.use('WXAgg')
     from matplotlib import pyplot
 
     # Read the header for information about data.
