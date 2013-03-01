@@ -50,6 +50,8 @@ class ErpyNavigationToolbar(NavigationToolbar2Wx):
 
     def __init__(self, *args):
         NavigationToolbar2Wx.__init__(self, *args)
+        self.play_thread = PlayThread(self, self.canvas)
+        self.play_thread.start()
 
     def _init_toolbar(self, *args):
         NavigationToolbar2Wx._init_toolbar(self, *args)
@@ -74,8 +76,7 @@ class ErpyNavigationToolbar(NavigationToolbar2Wx):
         self.canvas.draw()
 
     def _on_play(self, *args):
-        t = PlayThread(self, self.canvas)
-        t.start()
+        self.playing = not self.playing
 
     def _on_left(self, *args):
         for axes in self.canvas.figure.get_axes():
@@ -110,12 +111,15 @@ class PlayThread(threading.Thread):
         self._parent = parent
         self._canvas = canvas
     def run(self):
-        for i in range(100):
+        self._parent.playing = False
+        while True:
             start_time = time.time()
-            for axes in self._canvas.figure.get_axes():
-                t1, t2 = axes.get_xlim()
-                axes.set_xlim(t1 + self.interval, t2 + self.interval)
-            wx.PostEvent(self._parent, wx.PyCommandEvent(_EVT_REDRAW, -1))
+            if self._parent.playing:
+                for axes in self._canvas.figure.get_axes():
+                    t1, t2 = axes.get_xlim()
+                    axes.set_xlim(t1 + self.interval, t2 + self.interval)
+                evt = wx.PyCommandEvent(_EVT_REDRAW, -1)
+                wx.PostEvent(self._parent, evt)
             dt = time.time() - start_time
             if dt < self.interval:
                 time.sleep(self.interval - dt)
