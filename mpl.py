@@ -114,19 +114,19 @@ if __name__ == '__main__':
     limits = 5, 8, 5, 8
     fig = pyplot.figure()
 
-    for i in range(4):
-        x0 = (i % 2) * 0.5
-        y0 = (i / 2) * 0.5
-        axes = ErpyAxes(
-                fig, [x0, y0, 0.5, 0.5],
-                memmap=data,
-                sample_rate=sample_rate,
-                num_samples=num_samples,
-                limits=limits,
-                )
-        axes.set_xlim(*limits[:2])
-        axes.set_ylim(*limits[2:])
-        axes.set_xlabel('time (seconds)')
-        fig.add_axes(axes)
+    #for i in range(4):
+    #    x0 = (i % 2) * 0.5
+    #    y0 = (i / 2) * 0.5
+    axes = ErpyAxes(
+            fig, [0, 0, 1, 1],
+            memmap=data,
+            sample_rate=sample_rate,
+            num_samples=num_samples,
+            limits=limits,
+            )
+    axes.set_xlim(*limits[:2])
+    axes.set_ylim(*limits[2:])
+    axes.set_xlabel('time (seconds)')
+    fig.add_axes(axes)
 
     pyplot.show()

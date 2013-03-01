@@ -9,6 +9,9 @@ from matplotlib.backends.backend_wxagg import \
 
 import wx
 
+import threading
+import time
+
 
 def new_figure_manager(num, *args, **kwargs):
     """
@@ -60,37 +63,59 @@ class ErpyNavigationToolbar(NavigationToolbar2Wx):
                            'Down', 'Go down one channel')
         self.AddSimpleTool(_NTB_UP, _load_bitmap('stock_up.xpm'),
                            'Up', 'Go up one channel')
-        bind(self, wx.EVT_TOOL, self._onPlay, id=_NTB_PLAY)
-        bind(self, wx.EVT_TOOL, self._onLeft, id=_NTB_LEFT)
-        bind(self, wx.EVT_TOOL, self._onRight, id=_NTB_RIGHT)
-        bind(self, wx.EVT_TOOL, self._onDown, id=_NTB_DOWN)
-        bind(self, wx.EVT_TOOL, self._onUp, id=_NTB_UP)
+        self.Bind(EVT_REDRAW, self._on_redraw)
+        bind(self, wx.EVT_TOOL, self._on_play, id=_NTB_PLAY)
+        bind(self, wx.EVT_TOOL, self._on_left, id=_NTB_LEFT)
+        bind(self, wx.EVT_TOOL, self._on_right, id=_NTB_RIGHT)
+        bind(self, wx.EVT_TOOL, self._on_down, id=_NTB_DOWN)
+        bind(self, wx.EVT_TOOL, self._on_up, id=_NTB_UP)
 
-    def _onPlay(self, *args):
-        for axes in self.canvas.figure.get_axes():
-            pass
-        raise NotImplementedError
+    def _on_redraw(self, *args):
+        self.canvas.draw()
 
-    def _onLeft(self, *args):
+    def _on_play(self, *args):
+        t = PlayThread(self, self.canvas)
+        t.start()
+
+    def _on_left(self, *args):
         for axes in self.canvas.figure.get_axes():
             t1, t2 = axes.get_xlim()
             axes.set_xlim(t1 - t2  + t1, t1)
         self.canvas.draw()
 
-    def _onRight(self, *args):
+    def _on_right(self, *args):
         for axes in self.canvas.figure.get_axes():
             t1, t2 = axes.get_xlim()
             axes.set_xlim(t2, t2 + t2 - t1)
         self.canvas.draw()
 
-    def _onDown(self, *args):
+    def _on_down(self, *args):
         for axes in self.canvas.figure.get_axes():
             ch1, ch2 = axes.get_ylim()
             axes.set_ylim(ch2, ch2 + ch2 - ch1)
         self.canvas.draw()
 
-    def _onUp(self, *args):
+    def _on_up(self, *args):
         for axes in self.canvas.figure.get_axes():
             ch1, ch2 = axes.get_ylim()
             axes.set_ylim(ch2, ch2 + ch2 - ch1)
         self.canvas.draw()
+
+_EVT_REDRAW = wx.NewEventType()
+EVT_REDRAW = wx.PyEventBinder(_EVT_REDRAW, 1)
+class PlayThread(threading.Thread):
+    interval = 0.1
+    def __init__(self, parent, canvas):
+        threading.Thread.__init__(self)
+        self._parent = parent
+        self._canvas = canvas
+    def run(self):
+        for i in range(100):
+            start_time = time.time()
+            for axes in self._canvas.figure.get_axes():
+                t1, t2 = axes.get_xlim()
+                axes.set_xlim(t1 + self.interval, t2 + self.interval)
+            wx.PostEvent(self._parent, wx.PyCommandEvent(_EVT_REDRAW, -1))
+            dt = time.time() - start_time
+            if dt < self.interval:
+                time.sleep(self.interval - dt)
