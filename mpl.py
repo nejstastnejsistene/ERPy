@@ -118,7 +118,7 @@ if __name__ == '__main__':
     #    x0 = (i % 2) * 0.5
     #    y0 = (i / 2) * 0.5
     axes = ErpyAxes(
-            fig, [0, 0, 1, 1],
+            fig, [0.1, 0.1, 0.8, 0.8],
             memmap=data,
             sample_rate=sample_rate,
             num_samples=num_samples,
