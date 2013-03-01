@@ -93,13 +93,13 @@ class ErpyNavigationToolbar(NavigationToolbar2Wx):
     def _on_down(self, *args):
         for axes in self.canvas.figure.get_axes():
             ch1, ch2 = axes.get_ylim()
-            axes.set_ylim(ch2, ch2 + ch2 - ch1)
+            axes.set_ylim(ch1 - 1, ch2 - 1)
         self.canvas.draw()
 
     def _on_up(self, *args):
         for axes in self.canvas.figure.get_axes():
             ch1, ch2 = axes.get_ylim()
-            axes.set_ylim(ch2, ch2 + ch2 - ch1)
+            axes.set_ylim(ch1 + 1, ch2 + 1)
         self.canvas.draw()
 
 _EVT_REDRAW = wx.NewEventType()
